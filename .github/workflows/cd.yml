@@ -1,0 +1,43 @@
+# Continuous Deployment for Chrome Extensions
+# git tag <version> 
+# git push origin --tags
+name: Extension Release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ '*' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        cache: 'npm'
+    - run: npm ci
+    - run: npm test
+    - run: npm run build --if-present
+    - name: Package Extension
+      shell: bash
+      run: |
+        cp -R manifest.json dist/
+        zip -r extension.zip dist/
+    
+    # Disabled until released into chrome store
+    # - uses: cardinalby/webext-buildtools-chrome-crx-action@v2
+    #   with:
+    #     # zip file made at the packExtensionDir step
+    #     zipFilePath: 'extension.zip'
+    #     crxFilePath: 'extension.crx'
+    #     privateKey: ${{ secrets.CHROME_CRX_PRIVATE_KEY }}
+    
+    - name: Release
+      uses: ncipollo/release-action@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        artifacts: 'extension.zip'
